@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tactical RTSP Alert Monitor</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: #0a0e27;
+            color: #e0e0e0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #1a1f3a 0%, #0d1128 100%);
+            padding: 20px;
+            border-bottom: 3px solid #00ff41;
+            box-shadow: 0 4px 20px rgba(0, 255, 65, 0.3);
+        }
+
+        .header h1 {
+            font-size: 28px;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            color: #00ff41;
+            text-shadow: 0 0 10px rgba(0, 255, 65, 0.5);
+        }
+
+        .container {
+            flex: 1;
+            display: flex;
+            padding: 20px;
+            gap: 20px;
+        }
+
+        .control-panel {
+            width: 350px;
+            background: rgba(26, 31, 58, 0.8);
+            border: 2px solid #2a3f5f;
+            border-radius: 10px;
+            padding: 20px;
+            height: fit-content;
+        }
+
+        .control-panel h2 {
+            color: #00ff41;
+            margin-bottom: 20px;
+            font-size: 18px;
+            border-bottom: 2px solid #00ff41;
+            padding-bottom: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #8fa3bf;
+            font-size: 12px;
+            text-transform: uppercase;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 10px;
+            background: #0d1128;
+            border: 1px solid #2a3f5f;
+            border-radius: 5px;
+            color: #e0e0e0;
+            font-family: 'Courier New', monospace;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #00ff41;
+            box-shadow: 0 0 10px rgba(0, 255, 65, 0.3);
+        }
+
+        .btn {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #00ff41 0%, #00cc33 100%);
+            border: none;
+            border-radius: 5px;
+            color: #0a0e27;
+            font-weight: bold;
+            font-size: 14px;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.3s;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(0, 255, 65, 0.5);
+        }
+
+        .btn:disabled {
+            background: #2a3f5f;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-stop {
+            background: linear-gradient(135deg, #ff4757 0%, #cc0000 100%);
+            margin-top: 10px;
+        }
+
+        .display-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .alert-display {
+            background: rgba(26, 31, 58, 0.8);
+            border: 3px solid #2a3f5f;
+            border-radius: 15px;
+            padding: 40px;
+            text-align: center;
+            min-height: 400px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.5s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .alert-display::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            animation: rotate 20s linear infinite;
+        }
+
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .alert-display.green {
+            border-color: #00ff41;
+            background: rgba(0, 255, 65, 0.1);
+            box-shadow: 0 0 30px rgba(0, 255, 65, 0.3);
+        }
+
+        .alert-display.yellow {
+            border-color: #ffd700;
+            background: rgba(255, 215, 0, 0.1);
+            box-shadow: 0 0 30px rgba(255, 215, 0, 0.4);
+            animation: pulse-yellow 2s infinite;
+        }
+
+        .alert-display.red {
+            border-color: #ff4757;
+            background: rgba(255, 71, 87, 0.1);
+            box-shadow: 0 0 40px rgba(255, 71, 87, 0.5);
+            animation: pulse-red 1s infinite;
+        }
+
+        @keyframes pulse-yellow {
+            0%, 100% { box-shadow: 0 0 30px rgba(255, 215, 0, 0.4); }
+            50% { box-shadow: 0 0 50px rgba(255, 215, 0, 0.6); }
+        }
+
+        @keyframes pulse-red {
+            0%, 100% { box-shadow: 0 0 40px rgba(255, 71, 87, 0.5); }
+            50% { box-shadow: 0 0 60px rgba(255, 71, 87, 0.8); }
+        }
+
+        .alert-icon {
+            font-size: 120px;
+            margin-bottom: 20px;
+            filter: drop-shadow(0 0 20px currentColor);
+            z-index: 1;
+        }
+
+        .alert-level {
+            font-size: 48px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 5px;
+            margin-bottom: 20px;
+            z-index: 1;
+            text-shadow: 0 0 20px currentColor;
+        }
+
+        .alert-description {
+            font-size: 18px;
+            color: #8fa3bf;
+            margin-bottom: 30px;
+            z-index: 1;
+        }
+
+        .keywords-container {
+            background: rgba(13, 17, 40, 0.9);
+            border: 2px solid #2a3f5f;
+            border-radius: 10px;
+            padding: 20px;
+            z-index: 1;
+            width: 100%;
+        }
+
+        .keywords-title {
+            color: #00ff41;
+            font-size: 14px;
+            text-transform: uppercase;
+            margin-bottom: 15px;
+            letter-spacing: 2px;
+        }
+
+        .keywords-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .keyword-tag {
+            background: linear-gradient(135deg, #2a3f5f 0%, #1a2540 100%);
+            padding: 8px 16px;
+            border-radius: 20px;
+            border: 1px solid #00ff41;
+            color: #00ff41;
+            font-size: 14px;
+            animation: fadeIn 0.5s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.8); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        .status-bar {
+            background: rgba(26, 31, 58, 0.8);
+            border: 2px solid #2a3f5f;
+            border-radius: 10px;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #2a3f5f;
+        }
+
+        .status-dot.active {
+            background: #00ff41;
+            box-shadow: 0 0 10px #00ff41;
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        .status-text {
+            color: #8fa3bf;
+            font-size: 12px;
+        }
+
+        .timestamp {
+            color: #00ff41;
+            font-size: 12px;
+        }
+
+        .log-panel {
+            background: rgba(26, 31, 58, 0.8);
+            border: 2px solid #2a3f5f;
+            border-radius: 10px;
+            padding: 15px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .log-panel h3 {
+            color: #00ff41;
+            font-size: 14px;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+        }
+
+        .log-entry {
+            padding: 5px 0;
+            border-bottom: 1px solid #1a2540;
+            font-size: 12px;
+            color: #8fa3bf;
+        }
+
+        .log-entry:last-child {
+            border-bottom: none;
+        }
+
+        .log-entry .log-time {
+            color: #00ff41;
+            margin-right: 10px;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #0d1128;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #2a3f5f;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #3a4f6f;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>⚡ Tactical RTSP Alert Monitor</h1>
+    </div>
+
+    <div class="container">
+        <div class="control-panel">
+            <h2>🎛️ Control Panel</h2>
+            
+            <div class="form-group">
+                <label>RTSP Stream URL</label>
+                <input type="text" id="rtspUrl" placeholder="rtsp://user:pass@host:port/path">
+            </div>
+
+            <div class="form-group">
+                <label>Focus Mode</label>
+                <select id="focusMode">
+                    <option value="audio_only">Audio Only</option>
+                    <option value="audio_video">Audio + Video</option>
+                    <option value="video_only">Video Only</option>
+                </select>
+            </div>
+
+            <button class="btn" id="startBtn" onclick="startMonitoring()">
+                🚀 Start Monitoring
+            </button>
+            <button class="btn btn-stop" id="stopBtn" onclick="stopMonitoring()" disabled>
+                🛑 Stop Monitoring
+            </button>
+
+            <div style="margin-top: 30px;">
+                <div class="log-panel">
+                    <h3>📋 Activity Log</h3>
+                    <div id="logEntries"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="display-area">
+            <div class="alert-display" id="alertDisplay">
+                <div class="alert-icon">🔍</div>
+                <div class="alert-level">Standby</div>
+                <div class="alert-description">Awaiting stream connection...</div>
+            </div>
+
+            <div class="status-bar">
+                <div class="status-item">
+                    <div class="status-dot" id="connectionStatus"></div>
+                    <span class="status-text" id="connectionText">Disconnected</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-text">Last Update:</span>
+                    <span class="timestamp" id="lastUpdate">--:--:--</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let ws = null;
+        let currentAlert = null;
+
+        const alertConfig = {
+            green: {
+                icon: '✅',
+                level: 'Level 1 - Normal',
+                description: 'Situation is calm and under control',
+                color: '#00ff41'
+            },
+            yellow: {
+                icon: '⚠️',
+                level: 'Level 2 - Caution',
+                description: 'Potential escalation detected',
+                color: '#ffd700'
+            },
+            red: {
+                icon: '🚨',
+                level: 'Level 3 - Critical',
+                description: 'Immediate danger - Action required',
+                color: '#ff4757'
+            }
+        };
+
+        function addLog(message) {
+            const logEntries = document.getElementById('logEntries');
+            const time = new Date().toLocaleTimeString();
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            entry.innerHTML = `<span class="log-time">[${time}]</span>${message}`;
+            logEntries.insertBefore(entry, logEntries.firstChild);
+            
+            // Keep only last 20 entries
+            while (logEntries.children.length > 20) {
+                logEntries.removeChild(logEntries.lastChild);
+            }
+        }
+
+        function updateTimestamp() {
+            document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
+        }
+
+        function updateConnectionStatus(connected) {
+            const statusDot = document.getElementById('connectionStatus');
+            const statusText = document.getElementById('connectionText');
+            
+            if (connected) {
+                statusDot.classList.add('active');
+                statusText.textContent = 'Connected';
+                statusText.style.color = '#00ff41';
+            } else {
+                statusDot.classList.remove('active');
+                statusText.textContent = 'Disconnected';
+                statusText.style.color = '#8fa3bf';
+            }
+        }
+
+        function updateAlertDisplay(data) {
+            const display = document.getElementById('alertDisplay');
+            const alert = data.alert ? data.alert.toLowerCase() : null;
+            
+            if (alert && alertConfig[alert]) {
+                const config = alertConfig[alert];
+                currentAlert = alert;
+                
+                // Update display
+                display.className = `alert-display ${alert}`;
+                display.innerHTML = `
+                    <div class="alert-icon">${config.icon}</div>
+                    <div class="alert-level" style="color: ${config.color}">${config.level}</div>
+                    <div class="alert-description">${config.description}</div>
+                    ${data.keywords && data.keywords.length > 0 ? `
+                        <div class="keywords-container">
+                            <div class="keywords-title">🎯 Detected Keywords</div>
+                            <div class="keywords-list">
+                                ${data.keywords.map(kw => `<span class="keyword-tag">${kw}</span>`).join('')}
+                            </div>
+                        </div>
+                    ` : ''}
+                `;
+                
+                updateTimestamp();
+                addLog(`Alert level changed to: ${config.level.toUpperCase()}`);
+                
+                if (data.keywords && data.keywords.length > 0) {
+                    addLog(`Keywords detected: ${data.keywords.join(', ')}`);
+                }
+            }
+        }
+
+        function startMonitoring() {
+            const rtspUrl = document.getElementById('rtspUrl').value;
+            const focusMode = document.getElementById('focusMode').value;
+            
+            if (!rtspUrl) {
+                alert('Please enter an RTSP URL');
+                return;
+            }
+            
+            // Connect to WebSocket
+            ws = new WebSocket('ws://192.168.20.239:18021/ws/stream');
+            
+            ws.onopen = () => {
+                addLog('WebSocket connection established');
+                updateConnectionStatus(true);
+                
+                // Send configuration
+                ws.send(JSON.stringify({
+                    rtsp_url: rtspUrl,
+                    focus: focusMode
+                }));
+                
+                document.getElementById('startBtn').disabled = true;
+                document.getElementById('stopBtn').disabled = false;
+                document.getElementById('rtspUrl').disabled = true;
+                document.getElementById('focusMode').disabled = true;
+                
+                addLog(`Monitoring started - ${focusMode}`);
+            };
+            
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                
+                if (data.type === 'status') {
+                    addLog(data.message);
+                } else if (data.type === 'error') {
+                    addLog(`ERROR: ${data.message}`);
+                } else if (data.alert) {
+                    updateAlertDisplay(data);
+                }
+            };
+            
+            ws.onerror = (error) => {
+                addLog('WebSocket error occurred');
+                console.error('WebSocket error:', error);
+            };
+            
+            ws.onclose = () => {
+                addLog('WebSocket connection closed');
+                updateConnectionStatus(false);
+                document.getElementById('startBtn').disabled = false;
+                document.getElementById('stopBtn').disabled = true;
+                document.getElementById('rtspUrl').disabled = false;
+                document.getElementById('focusMode').disabled = false;
+            };
+        }
+
+        function stopMonitoring() {
+            if (ws) {
+                ws.close();
+                ws = null;
+                addLog('Monitoring stopped by user');
+            }
+        }
+
+        // Initialize
+        addLog('System initialized and ready');
+    </script>
+</body>
+</html>

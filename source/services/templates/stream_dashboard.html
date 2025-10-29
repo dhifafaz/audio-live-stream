@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stream Management Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .header h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        .status-badge.connected {
+            background: #10b981;
+            color: white;
+        }
+
+        .status-badge.disconnected {
+            background: #ef4444;
+            color: white;
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .panel {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .panel h2 {
+            color: #333;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #667eea;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #555;
+            font-weight: 600;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+        }
+
+        .btn-success {
+            background: #10b981;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #059669;
+        }
+
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+
+        .btn-sm {
+            padding: 5px 10px;
+            font-size: 12px;
+        }
+
+        .streams-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .stream-item {
+            background: #f9fafb;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            border-left: 4px solid #667eea;
+        }
+
+        .stream-item.active {
+            border-left-color: #10b981;
+            background: #ecfdf5;
+        }
+
+        .stream-item.error {
+            border-left-color: #ef4444;
+            background: #fef2f2;
+        }
+
+        .stream-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .stream-id {
+            font-weight: bold;
+            color: #333;
+        }
+
+        .stream-status {
+            font-size: 12px;
+            padding: 3px 10px;
+            border-radius: 10px;
+            background: #e5e7eb;
+            color: #374151;
+        }
+
+        .stream-details {
+            font-size: 14px;
+            color: #666;
+        }
+
+        .stream-actions {
+            margin-top: 10px;
+            display: flex;
+            gap: 5px;
+        }
+
+        .events-panel {
+            grid-column: 1 / -1;
+        }
+
+        .events-list {
+            max-height: 300px;
+            overflow-y: auto;
+            background: #1f2937;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            color: #f3f4f6;
+        }
+
+        .event-item {
+            margin-bottom: 10px;
+            padding: 8px;
+            background: #374151;
+            border-radius: 3px;
+        }
+
+        .event-time {
+            color: #10b981;
+            font-weight: bold;
+        }
+
+        .event-type {
+            color: #60a5fa;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 5px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 5px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎥 Stream Management Dashboard</h1>
+            <p>Real-time RTSP stream monitoring with SSE</p>
+            <div style="margin-top: 10px;">
+                <span id="connectionStatus" class="status-badge disconnected">Disconnected</span>
+                <span style="margin-left: 10px; color: #666;">Active Streams: <strong id="activeCount">0</strong></span>
+            </div>
+        </div>
+
+        <div class="dashboard">
+            <!-- Register New Stream -->
+            <div class="panel">
+                <h2>📝 Register New Stream</h2>
+                <form id="registerForm">
+                    <div class="form-group">
+                        <label>RTSP URL</label>
+                        <input type="text" id="rtspUrl" placeholder="rtsp://10.254.1.252:8554/bodycam" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Username</label>
+                        <input type="text" id="username" placeholder="streamer" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Password</label>
+                        <input type="password" id="password" placeholder="password" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Mode</label>
+                        <select id="mode">
+                            <option value="audio">Audio Only</option>
+                            <option value="audio_video">Audio + Video</option>
+                            <option value="video">Video Only</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Engine</label>
+                        <select id="engine">
+                            <option value="qwen">Qwen</option>
+                            <option value="gemini">Gemini</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Register Stream</button>
+                </form>
+            </div>
+
+            <!-- Active Streams -->
+            <div class="panel">
+                <h2>📡 Registered Streams</h2>
+                <div class="streams-list" id="streamsList">
+                    <p style="text-align: center; color: #999;">No streams registered</p>
+                </div>
+            </div>
+
+            <!-- Real-time Events -->
+            <div class="panel events-panel">
+                <h2>📊 Real-time Events (SSE)</h2>
+                <div class="events-list" id="eventsList"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://192.168.20.149:8000/api';
+        let eventSource = null;
+
+        // Connect to SSE
+        function connectSSE() {
+            eventSource = new EventSource(`${API_BASE}/events`);
+            
+            eventSource.onopen = () => {
+                updateConnectionStatus(true);
+                addEvent('connected', 'SSE connection established');
+            };
+
+            eventSource.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                handleEvent(data);
+            };
+
+            eventSource.onerror = () => {
+                updateConnectionStatus(false);
+                addEvent('error', 'SSE connection lost');
+                
+                // Reconnect after 5 seconds
+                setTimeout(() => {
+                    if (eventSource.readyState === EventSource.CLOSED) {
+                        connectSSE();
+                    }
+                }, 5000);
+            };
+        }
+
+        function updateConnectionStatus(connected) {
+            const badge = document.getElementById('connectionStatus');
+            if (connected) {
+                badge.textContent = 'Connected';
+                badge.className = 'status-badge connected';
+            } else {
+                badge.textContent = 'Disconnected';
+                badge.className = 'status-badge disconnected';
+            }
+        }
+
+        function handleEvent(data) {
+            addEvent(data.type, JSON.stringify(data, null, 2));
+            
+            // Refresh streams list on certain events
+            if (['stream_created', 'stream_deleted', 'work_assigned', 'work_removed', 'stream_updated'].includes(data.type)) {
+                loadStreams();
+            }
+        }
+
+        function addEvent(type, message) {
+            const eventsList = document.getElementById('eventsList');
+            const time = new Date().toLocaleTimeString();
+            
+            const eventDiv = document.createElement('div');
+            eventDiv.className = 'event-item';
+            eventDiv.innerHTML = `
+                <span class="event-time">[${time}]</span>
+                <span class="event-type">${type}</span>
+                <pre style="margin: 5px 0 0 0; color: #d1d5db;">${message}</pre>
+            `;
+            
+            eventsList.insertBefore(eventDiv, eventsList.firstChild);
+            
+            // Keep only last 50 events
+            while (eventsList.children.length > 50) {
+                eventsList.removeChild(eventsList.lastChild);
+            }
+        }
+
+        // Register new stream
+        document.getElementById('registerForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const data = {
+                rtsp_url: document.getElementById('rtspUrl').value,
+                credentials: {
+                    username: document.getElementById('username').value,
+                    password: document.getElementById('password').value
+                },
+                mode: document.getElementById('mode').value,
+                engine: document.getElementById('engine').value
+            };
+            
+            try {
+                const response = await fetch(`${API_BASE}/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert(`Stream registered successfully!\nID: ${result.stream_id}`);
+                    document.getElementById('registerForm').reset();
+                    loadStreams();
+                } else {
+                    alert('Failed to register stream: ' + result.message);
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        });
+
+        // Load all streams
+        async function loadStreams() {
+            try {
+                const response = await fetch(`${API_BASE}/streams`);
+                const streams = await response.json();
+                
+                const streamsList = document.getElementById('streamsList');
+                
+                if (streams.length === 0) {
+                    streamsList.innerHTML = '<p style="text-align: center; color: #999;">No streams registered</p>';
+                    document.getElementById('activeCount').textContent = '0';
+                    return;
+                }
+                
+                // Count active streams
+                const activeCount = streams.filter(s => s.status === 'active' || s.status === 'processing').length;
+                document.getElementById('activeCount').textContent = activeCount;
+                
+                streamsList.innerHTML = streams.map(stream => `
+                    <div class="stream-item ${stream.status === 'active' ? 'active' : stream.status === 'error' ? 'error' : ''}">
+                        <div class="stream-header">
+                            <span class="stream-id">${stream.id.substring(0, 8)}...</span>
+                            <span class="stream-status">${stream.status}</span>
+                        </div>
+                        <div class="stream-details">
+                            <div>🔗 ${stream.rtsp_url}</div>
+                            <div>🎛️ Mode: ${stream.mode} | Engine: ${stream.engine}</div>
+                            ${stream.error_message ? `<div style="color: #ef4444;">⚠️ ${stream.error_message}</div>` : ''}
+                        </div>
+                        <div class="stream-actions">
+                            ${stream.status !== 'active' && stream.status !== 'processing' ? 
+                                `<button class="btn btn-success btn-sm" onclick="startStream('${stream.id}')">▶️ Start</button>` :
+                                `<button class="btn btn-danger btn-sm" onclick="stopStream('${stream.id}')">⏸️ Stop</button>`
+                            }
+                            <button class="btn btn-danger btn-sm" onclick="deleteStream('${stream.id}')">🗑️ Delete</button>
+                        </div>
+                    </div>
+                `).join('');
+                
+            } catch (error) {
+                console.error('Error loading streams:', error);
+            }
+        }
+
+        // Start stream processing
+        async function startStream(streamId) {
+            try {
+                const response = await fetch(`${API_BASE}/streams/${streamId}/start`, {
+                    method: 'POST'
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert('Stream processing started!');
+                } else {
+                    alert('Failed to start stream: ' + result.message);
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+
+        // Stop stream processing
+        async function stopStream(streamId) {
+            try {
+                const response = await fetch(`${API_BASE}/streams/${streamId}/stop`, {
+                    method: 'POST'
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert('Stream processing stopped!');
+                } else {
+                    alert('Failed to stop stream: ' + result.message);
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+
+        // Delete stream
+        async function deleteStream(streamId) {
+            if (!confirm('Are you sure you want to delete this stream?')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/streams/${streamId}`, {
+                    method: 'DELETE'
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert('Stream deleted successfully!');
+                } else {
+                    alert('Failed to delete stream: ' + result.message);
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+
+        // Initialize
+        window.addEventListener('load', () => {
+            connectSSE();
+            loadStreams();
+            
+            // Refresh streams every 10 seconds
+            setInterval(loadStreams, 10000);
+        });
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            if (eventSource) {
+                eventSource.close();
+            }
+        });
+    </script>
+</body>
+</html>
