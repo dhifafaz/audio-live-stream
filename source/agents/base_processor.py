@@ -234,6 +234,8 @@ class BaseStreamProcessor(ABC):
         except Exception as e:
             logger.exception("Unexpected error in main loop")
         finally:
+            # CRITICAL: Always cleanup, even if errors occur
+            logger.info("Cleaning up session...")
             await self.cleanup_session()
     
     def get_metadata(self) -> Dict[str, Any]:

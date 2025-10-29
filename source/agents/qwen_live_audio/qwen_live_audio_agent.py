@@ -22,7 +22,7 @@ from loguru import logger
 from dotenv import load_dotenv
 
 from source.agents.base_processor import BaseStreamProcessor
-from .prompt import PROMPTS
+from source.agents.qwen_live_audio.prompt import PROMPTS
 
 load_dotenv()
 

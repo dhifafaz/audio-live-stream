@@ -301,19 +301,12 @@ class StreamProcessor:
                 processor_class = GeminiStreamProcessor
             
             # Create processor instance
+            # FIXED: Both processors now use the same signature - no special handling needed
             full_rtsp_url = self.config.get_full_rtsp_url()
-            if self.config.engine == EngineType.QWEN:
-                processor = processor_class(
-                    rtsp_url=full_rtsp_url,
-                    focus=self.config.mode.value,
-                    websocket=settings.WEBSOCKET_URL_QWEN,
-                    provider=self.config.engine.value
-                )
-            else:
-                processor = processor_class(
-                    rtsp_url=full_rtsp_url,
-                    focus=self.config.mode.value
-                )
+            processor = processor_class(
+                rtsp_url=full_rtsp_url,
+                focus=self.config.mode.value
+            )
             
             # Broadcast start event
             await self._broadcast_event({
